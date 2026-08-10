@@ -1,0 +1,10 @@
+name: random-events-survival
+version: '1.0-SNAPSHOT'
+main: org.rlaxogh76.randomEventsSurvival.RandomEventsSurvival
+api-version: '1.21'
+
+commands:
+  test:
+    description: "테스트"
+    usage: /test
+
