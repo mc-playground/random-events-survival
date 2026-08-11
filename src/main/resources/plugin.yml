@@ -1,10 +1,27 @@
 name: random-events-survival
-version: '1.0-SNAPSHOT'
+version: "1.0-SNAPSHOT"
 main: org.rlaxogh76.randomEventsSurvival.RandomEventsSurvival
-api-version: '1.21'
+api-version: "1.21"
 
 commands:
   test:
     description: "테스트"
     usage: /test
+  게임시작:
+    description: 이벤트 타이머를 시작합니다.
+    usage: /게임시작
+    permission: randomeventssurvival.start
+    permission-message: 이 명령어를 사용할 권한이 없습니다.
+  종료:
+    description: 진행 중인 이벤트 타이머를 종료합니다.
+    usage: /종료
+    permission: randomeventssurvival.stop
+    permission-message: 이 명령어를 사용할 권한이 없습니다.
 
+permissions:
+  randomeventssurvival.start:
+    description: 이벤트 타이머 시작 권한
+    default: op
+  randomeventssurvival.stop:
+    description: 이벤트 타이머 종료 권한
+    default: op

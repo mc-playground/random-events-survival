@@ -52,9 +52,9 @@ processResources {
     filesMatching('plugin.yml') {
         expand props
     }
+}
 
-
-tasks.jar{ // 플러그인 빌드 후 저장될 위치와 이름
+tasks.jar {
     archiveFileName = 'random-events-survival.jar'
     destinationDirectory = file('C:\\Users\\gktra\\Desktop\\test\\plugins')
 }
