@@ -1,6 +1,8 @@
 package org.rlaxogh76.randomEventsSurvival;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -16,9 +18,33 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class GameStart implements CommandExecutor, Listener {
 
     private static final int EVENT_INTERVAL_SECONDS = 5; // 이벤트 주기(초) 기본 : 90초
+
+    private static final int ROULETTE_TOTAL_STEPS = 20;
+    private static final long ROULETTE_MIN_DELAY = 1L;
+    private static final long ROULETTE_MAX_DELAY = 8L;
+    private static final long ROULETTE_GAP_DELAY = 30L;
+
+    private static final String[] DEFAULT_EVENTS = {
+            "item_remove", "tick_speed_change", "player_hp_change", "time_change", "hotbar_change",
+            "player_random_effect_give", "spawn_tnt"
+    };
+
+    private static final String[] DOUBLE_EVENTS = {
+            "item_remove", "player_hp_change", "hotbar_change", "spawn_random_mob", "inventory_mix",
+            "spawn_tnt", "random_effect_give"
+    };
+
+    private static final String[] RARE_EVENTS = {
+            "dragon_get_hp", "spawn_bob"
+    };
 
     private final Plugin plugin;
     private BossBar eventBossBar;
@@ -29,6 +55,8 @@ public class GameStart implements CommandExecutor, Listener {
     // 타이머가 "일시정지 중"인지를 구분해서 관리
     private boolean gameActive = false;
     private boolean paused = false;
+    private boolean playerRouletteRunning = false;
+    private boolean eventRouletteRunning = false;
 
     public GameStart(Plugin plugin) {
         this.plugin = plugin;
@@ -90,36 +118,25 @@ public class GameStart implements CommandExecutor, Listener {
                 secondsLeft--;
 
                 if (secondsLeft <= 0) {
+                    eventTimerTask.cancel();
+                    eventTimerTask = null;
 
-                    final String[] default_events = {
-                            "item_remove", "tick_speed_change", "player_hp_change", "time_change", "hotbar_change",
-                            "player_random_effect_give", "spawn_tnt"
-                    };
+                    eventBossBar.setTitle(formatTitle(0));
+                    eventBossBar.setProgress(0.0);
 
-                    final String[] double_events = {
-                            "item_remove", "player_hp_change", "hotbar_change", "spawn_random_mob", "inventory_mix",
-                            "spawn_tnt", "random_effect_give"
-                    };
-
-                    final String[] rare_events = {
-                            "dragon_get_hp", "spawn_bob"
-                    };
-
-                    String selectedEvent;
-                    double randomValue = Math.random();
-
-                    if (randomValue < 0.01) {
-                        selectedEvent = rare_events[(int) (Math.random() * rare_events.length)];
-                    } else if (randomValue < 0.06) {
-                        selectedEvent = double_events[(int) (Math.random() * double_events.length)];
-                    } else {
-                        selectedEvent = default_events[(int) (Math.random() * default_events.length)];
-                    }
-
-                    Bukkit.broadcastMessage("선택된 이벤트: " + selectedEvent);
-
-                    secondsLeft = EVENT_INTERVAL_SECONDS;
-                    Bukkit.broadcastMessage("다음 이벤트까지 : " + secondsLeft + "초");
+                    // 온라인 플레이어 중 한 명을 룰렛으로 뽑아 타이틀/채팅으로 공지
+                    startPlayerRoulette(() -> Bukkit.getScheduler().runTaskLater(plugin,
+                            () -> startEventRoulette(() -> {
+                                secondsLeft = EVENT_INTERVAL_SECONDS;
+                                eventBossBar.setTitle(formatTitle(secondsLeft));
+                                eventBossBar.setProgress(1.0);
+                                Bukkit.broadcastMessage("다음 이벤트까지 : " + secondsLeft + "초");
+                                if (gameActive && !paused) {
+                                    runTimer();
+                                }
+                            }),
+                            ROULETTE_GAP_DELAY));
+                    return;
                 }
 
                 eventBossBar.setTitle(formatTitle(secondsLeft));
@@ -128,6 +145,131 @@ public class GameStart implements CommandExecutor, Listener {
         };
 
         eventTimerTask.runTaskTimer(plugin, 20L, 20L);
+    }
+
+    // 당첨자 룰렛 관련 메서드들
+
+    private void startPlayerRoulette(Runnable onComplete) {
+        List<Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
+
+        if (players.isEmpty() || playerRouletteRunning) {
+            // 플레이어가 없거나 이미 룰렛이 진행 중이면 스킵
+            onComplete.run();
+            return;
+        }
+
+        playerRouletteRunning = true;
+
+        // 당첨자를 미리 정해두고, 룰렛은 마지막에 이 사람에서 멈추도록 함
+        Player winner = players.get((int) (Math.random() * players.size()));
+
+        runPlayerSelectRouletteStep(players, winner, 0, onComplete);
+    }
+
+    private void runPlayerSelectRouletteStep(List<Player> players, Player winner, int step, Runnable onComplete) {
+        boolean isFinalStep = step >= ROULETTE_TOTAL_STEPS;
+
+        // 마지막 스텝이 아니면 매번 무작위 플레이어를, 마지막이면 당첨자를 표시
+        Player displayed = isFinalStep ? winner : players.get((int) (Math.random() * players.size()));
+
+        String coloredName = randomColoredText(displayed.getName());
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            // fadeIn 0틱, stay를 다음 회전 전까지 유지, fadeOut 짧게 -> 이름이 빠르게 전환되는 느낌
+            p.sendTitle(ChatColor.YELLOW + "이번 이벤트 당첨자는", coloredName, 0, 12, 4);
+        }
+
+        if (isFinalStep) {
+            playerRouletteRunning = false;
+
+            Bukkit.broadcastMessage(
+                    ChatColor.GOLD + "★ 이번 이벤트 당첨자는 " + coloredName + ChatColor.GOLD + " 님입니다! ★");
+
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+            }
+            onComplete.run();
+            return;
+        }
+
+        // step이 진행될수록(0 -> TOTAL) 딜레이가 점점 커지도록 3제곱 곡선 사용
+        // (초반에는 거의 안 늘어나다가, 후반부에 급격히 느려짐 -> 룰렛이 멈추는 느낌)
+        double progress = (double) step / ROULETTE_TOTAL_STEPS;
+        long delay = ROULETTE_MIN_DELAY
+                + Math.round(Math.pow(progress, 3) * (ROULETTE_MAX_DELAY - ROULETTE_MIN_DELAY));
+
+        Bukkit.getScheduler().runTaskLater(plugin,
+                () -> runPlayerSelectRouletteStep(players, winner, step + 1, onComplete),
+                delay);
+    }
+
+    private void startEventRoulette(Runnable onComplete) {
+        if (eventRouletteRunning) {
+            onComplete.run();
+            return;
+        }
+
+        eventRouletteRunning = true;
+
+        String winner = pickWeightedEvent();
+
+        List<String> pool = new ArrayList<>();
+        pool.addAll(Arrays.asList(DEFAULT_EVENTS));
+        pool.addAll(Arrays.asList(DOUBLE_EVENTS));
+        pool.addAll(Arrays.asList(RARE_EVENTS));
+
+        runEventRouletteStep(pool, winner, 0, onComplete);
+    }
+
+    private String pickWeightedEvent() {
+        double randomValue = Math.random();
+
+        if (randomValue < 0.01) {
+            return RARE_EVENTS[(int) (Math.random() * RARE_EVENTS.length)];
+        } else if (randomValue < 0.06) {
+            return DOUBLE_EVENTS[(int) (Math.random() * DOUBLE_EVENTS.length)];
+        } else {
+            return DEFAULT_EVENTS[(int) (Math.random() * DEFAULT_EVENTS.length)];
+        }
+    }
+
+    private void runEventRouletteStep(List<String> pool, String winner, int step, Runnable onComplete) {
+        boolean isFinalStep = step >= ROULETTE_TOTAL_STEPS;
+
+        String displayed = isFinalStep ? winner : pool.get((int) (Math.random() * pool.size()));
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.sendTitle(ChatColor.AQUA + "이벤트는", randomColoredText(displayed), 0, 12, 4);
+        }
+
+        if (isFinalStep) {
+            eventRouletteRunning = false;
+
+            Bukkit.broadcastMessage(ChatColor.AQUA + "선택된 이벤트: " + randomColoredText(winner));
+            onComplete.run();
+            return;
+        }
+
+        double progress = (double) step / ROULETTE_TOTAL_STEPS;
+        long delay = ROULETTE_MIN_DELAY
+                + Math.round(Math.pow(progress, 3) * (ROULETTE_MAX_DELAY - ROULETTE_MIN_DELAY));
+
+        Bukkit.getScheduler().runTaskLater(plugin,
+                () -> runEventRouletteStep(pool, winner, step + 1, onComplete),
+                delay);
+    }
+
+    private String randomColoredText(String text) {
+        Color color = new Color((int) (Math.random() * 0x1000000));
+        String hex = String.format("%06x", color.getRGB() & 0xFFFFFF);
+
+        StringBuilder sb = new StringBuilder("§x");
+        for (char c : hex.toCharArray()) {
+            sb.append('§').append(c);
+        }
+        sb.append(text);
+
+        return sb.toString();
     }
 
     private void pauseGame() {
@@ -163,6 +305,8 @@ public class GameStart implements CommandExecutor, Listener {
         secondsLeft = 0;
         gameActive = false;
         paused = false;
+        playerRouletteRunning = false;
+        eventRouletteRunning = false;
 
         Bukkit.broadcastMessage("이벤트 타이머가 종료되었습니다.");
     }
