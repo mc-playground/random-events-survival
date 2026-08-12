@@ -12,6 +12,7 @@ public final class RandomEventsSurvival extends JavaPlugin {
         GameStart gameStart = new GameStart(this);
         Objects.requireNonNull(this.getCommand("게임시작")).setExecutor(gameStart);
         Objects.requireNonNull(this.getCommand("종료")).setExecutor(gameStart);
+        Objects.requireNonNull(this.getCommand("타이틀")).setExecutor(new TitleCommand());
     }
 
     @Override
