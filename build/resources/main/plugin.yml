@@ -17,6 +17,9 @@ commands:
     usage: /종료
     permission: randomeventssurvival.stop
     permission-message: 이 명령어를 사용할 권한이 없습니다.
+  타이틀:
+    description: 타이틀을 띄웁니다.
+    usage: /타이틀
 
 permissions:
   randomeventssurvival.start:
