@@ -54,3 +54,7 @@ paper-server/src/minecraft/
 .vscode/
 .idea/
 .gradle/
+.gradle/8.8
+.gradle/buildOutputCleanup/
+.gradle/vsc-1
+file-system.probe
