@@ -5,5 +5,5 @@ import java.util.List;
 import org.bukkit.entity.Player;
 
 public interface GameEvent {
-    void execute(List<Player> players);
+    void execute(Player target, List<Player> allPlayers);
 }

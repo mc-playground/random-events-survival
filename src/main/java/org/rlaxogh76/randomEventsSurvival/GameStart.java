@@ -25,24 +25,25 @@ import java.util.List;
 
 public class GameStart implements CommandExecutor, Listener {
 
-    private static final int EVENT_INTERVAL_SECONDS = 5; // 이벤트 주기(초) 기본 : 90초
+    private static final int EVENT_INTERVAL_SECONDS = 1; // 이벤트 주기(초) 기본 : 90초
 
     private static final int ROULETTE_TOTAL_STEPS = 20;
     private static final long ROULETTE_MIN_DELAY = 1L;
     private static final long ROULETTE_MAX_DELAY = 8L;
     private static final long ROULETTE_GAP_DELAY = 30L;
 
-    private static final String[] DEFAULT_EVENTS = {
+    private static final String[] DEFAULT_EVENTS = { // 일반 이벤트 목록
             "item_remove", "tick_speed_change", "player_hp_change", "time_change", "hotbar_change",
-            "player_random_effect_give", "spawn_tnt"
+            "player_random_effect_give", "spawn_tnt", "yeet"
     };
 
-    private static final String[] DOUBLE_EVENTS = {
-            "item_remove", "player_hp_change", "hotbar_change", "spawn_random_mob", "inventory_mix",
-            "spawn_tnt", "random_effect_give"
-    };
+    // private static final String[] DOUBLE_EVENTS = { // 더블 이벤트 목록
+    // "item_remove", "player_hp_change", "hotbar_change", "spawn_random_mob",
+    // "inventory_mix",
+    // "spawn_tnt", "random_effect_give"
+    // };
 
-    private static final String[] RARE_EVENTS = {
+    private static final String[] RARE_EVENTS = { // 희귀 이벤트 목록
             "dragon_get_hp", "spawn_bob"
     };
 
@@ -58,9 +59,12 @@ public class GameStart implements CommandExecutor, Listener {
     private boolean playerRouletteRunning = false;
     private boolean eventRouletteRunning = false;
 
-    public GameStart(Plugin plugin) {
+    private final EventListener eventListener;
+    private Player selectedPlayer;
+
+    public GameStart(Plugin plugin, EventListener eventListener) {
         this.plugin = plugin;
-        // 리스너 등록 (main 클래스에서 이미 등록한다면 이 줄은 지워도 됩니다)
+        this.eventListener = eventListener;
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -96,7 +100,7 @@ public class GameStart implements CommandExecutor, Listener {
         gameActive = true;
         paused = false;
 
-        eventBossBar = Bukkit.createBossBar(formatTitle(secondsLeft), BarColor.RED, BarStyle.SOLID);
+        eventBossBar = Bukkit.createBossBar(formatTitle(secondsLeft), BarColor.YELLOW, BarStyle.SOLID);
         eventBossBar.setProgress(1.0);
         for (Player p : Bukkit.getOnlinePlayers()) {
             eventBossBar.addPlayer(p);
@@ -182,6 +186,8 @@ public class GameStart implements CommandExecutor, Listener {
         if (isFinalStep) {
             playerRouletteRunning = false;
 
+            selectedPlayer = winner; // ← 당첨자 저장
+
             Bukkit.broadcastMessage(
                     ChatColor.GOLD + "★ 이번 이벤트 당첨자는 " + coloredName + ChatColor.GOLD + " 님입니다! ★");
 
@@ -215,7 +221,7 @@ public class GameStart implements CommandExecutor, Listener {
 
         List<String> pool = new ArrayList<>();
         pool.addAll(Arrays.asList(DEFAULT_EVENTS));
-        pool.addAll(Arrays.asList(DOUBLE_EVENTS));
+        // pool.addAll(Arrays.asList(DOUBLE_EVENTS));
         pool.addAll(Arrays.asList(RARE_EVENTS));
 
         runEventRouletteStep(pool, winner, 0, onComplete);
@@ -224,11 +230,15 @@ public class GameStart implements CommandExecutor, Listener {
     private String pickWeightedEvent() {
         double randomValue = Math.random();
 
-        if (randomValue < 0.01) {
+        // 이벤트 확률 가중치
+
+        if (randomValue < 0.01) { // 1% 확률로 희귀 이벤트
             return RARE_EVENTS[(int) (Math.random() * RARE_EVENTS.length)];
-        } else if (randomValue < 0.06) {
-            return DOUBLE_EVENTS[(int) (Math.random() * DOUBLE_EVENTS.length)];
-        } else {
+        }
+        // else if (randomValue < 0.06) {
+        // return DOUBLE_EVENTS[(int) (Math.random() * DOUBLE_EVENTS.length)];
+        // }
+        else { // 나머지 99% 확률로 일반 이벤트
             return DEFAULT_EVENTS[(int) (Math.random() * DEFAULT_EVENTS.length)];
         }
     }
@@ -246,6 +256,9 @@ public class GameStart implements CommandExecutor, Listener {
             eventRouletteRunning = false;
 
             Bukkit.broadcastMessage(ChatColor.AQUA + "선택된 이벤트: " + randomColoredText(winner));
+
+            eventListener.trigger(winner, selectedPlayer);
+
             onComplete.run();
             return;
         }

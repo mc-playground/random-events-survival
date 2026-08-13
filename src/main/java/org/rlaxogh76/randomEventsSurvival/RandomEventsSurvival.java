@@ -9,10 +9,12 @@ public final class RandomEventsSurvival extends JavaPlugin {
     @Override
     public void onEnable() {
         Objects.requireNonNull(this.getCommand("test")).setExecutor(new TestCommand(this));
-        GameStart gameStart = new GameStart(this);
+        EventListener eventListener = new EventListener(this);
+        GameStart gameStart = new GameStart(this, eventListener);
         Objects.requireNonNull(this.getCommand("게임시작")).setExecutor(gameStart);
         Objects.requireNonNull(this.getCommand("종료")).setExecutor(gameStart);
         Objects.requireNonNull(this.getCommand("타이틀")).setExecutor(new TitleCommand());
+        this.getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
     }
 
     @Override
