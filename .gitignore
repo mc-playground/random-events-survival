@@ -54,5 +54,3 @@ paper-server/src/minecraft/
 .vscode/
 .idea/
 .gradle/
-bin/
-build/
