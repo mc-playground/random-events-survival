@@ -139,7 +139,7 @@ public class EventListener implements Listener {
         ItemStack removed = contents[slot];
         inv.setItem(slot, null);
 
-        target.sendMessage(ChatColor.RED + "니 템 [" + removed.getType() + "] 쩔더라 ㅋㅋ");
+        target.sendMessage(ChatColor.RED + "[" + removed.getType() + "] 아이템이 인벤토리에서 제거되었습니다.");
     }
 
     private void tickSpeedChange(Player target, List<Player> allPlayers) {
@@ -152,8 +152,8 @@ public class EventListener implements Listener {
             tickSpeedRevertTask = null;
         }
 
-        // 틱 속도 20 ~ 100 사이에 숫자로 변경 (10 단위)
-        int newTickSpeed = 20 + (int) (Math.random() * 9) * 10;
+        // 틱 속도 20 ~ 100 사이에 숫자로 변경 (20 단위)
+        int newTickSpeed = 20 + (int) (Math.random() * 9) * 20;
 
         for (World world : Bukkit.getWorlds()) {
             world.setGameRule(GameRule.RANDOM_TICK_SPEED, newTickSpeed);
@@ -254,7 +254,7 @@ public class EventListener implements Listener {
             return;
 
         target.setVelocity(new Vector(0, 100, 0)); // 위로 100블럭 발사
-        target.sendRichMessage("<rainbow>슝 슝 슝~");
+        target.sendRichMessage("<rainbow>하늘로 날아갑니다!");
     }
 
     private void dragonGetHp(Player target, List<Player> allPlayers) {
@@ -325,7 +325,7 @@ public class EventListener implements Listener {
         equipBobArmor(bob);
         giveBobEffects(bob);
 
-        Bukkit.broadcastMessage(ChatColor.DARK_RED + "짱짱 쎈 Bob이 소환되었습니다!");
+        Bukkit.broadcastMessage(ChatColor.DARK_RED + "Bob이 소환되었습니다!");
     }
 
     private void equipBobArmor(Zombie bob) {
@@ -380,7 +380,7 @@ public class EventListener implements Listener {
             return;
 
         target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20 * 10, 255)); // 10초 동안 이동 불가
-        target.sendMessage(ChatColor.AQUA + "동상에 걸렸습니다!");
+        target.sendMessage(ChatColor.AQUA + "너무 추워서 얼어붙었습니다..");
     }
 
     private void firework(Player target, List<Player> allPlayers) {
@@ -398,7 +398,7 @@ public class EventListener implements Listener {
             firework.setFireworkMeta(meta);
         });
 
-        target.sendMessage(ChatColor.LIGHT_PURPLE + "펑 (폭죽 터지는 소리)");
+        target.sendRichMessage("<rainbow>이벤트 당첨을 축하드립니다!");
     }
 
     private void tamedWolf(Player target, List<Player> allPlayers) {
@@ -411,7 +411,7 @@ public class EventListener implements Listener {
         wolf.setCustomName(ChatColor.GRAY + target.getName() + "'의 늑대");
         wolf.setCustomNameVisible(true);
 
-        target.sendMessage(ChatColor.GREEN + "너 내 주인이 되어라");
+        target.sendMessage(ChatColor.GREEN + "당신을 따르는 늑대가 소환되었습니다!");
     }
 
     private void setSpawn(Player target, List<Player> allPlayers) {
@@ -444,7 +444,7 @@ public class EventListener implements Listener {
 
         if (meta != null) {
             meta.setDisplayName("똥"); // 색을 넣으면 자동으로 이탤릭 해제됨
-            meta.setLore(List.of("냄새 조1낸 역겨움"));
+            meta.setLore(List.of("된장 냄새가 난다.. 아닌가?"));
             poopItem.setItemMeta(meta);
         }
 
