@@ -36,7 +36,7 @@ public class GameStart implements CommandExecutor, Listener {
             "item_remove", "tick_speed_change", "player_hp_change", "time_change", "hotbar_change",
             "player_random_effect_give", "spawn_tnt", "yeet", "spawn_random_mob", "freeze_player", "firework",
             "tamed_wolf", "set_spawn", "block_remove",
-            "poop", "tained_wolf", "burn_player"
+            "poop", "burn_player"
     };
 
     // private static final String[] DOUBLE_EVENTS = { // 더블 이벤트 목록
