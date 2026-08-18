@@ -8,11 +8,17 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -25,12 +31,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class EventListener {
+public class EventListener implements Listener {
 
     private final Plugin plugin;
     private final Map<String, GameEvent> eventRegistry = new HashMap<>();
 
     private BukkitRunnable tickSpeedRevertTask; // 필드로 선언
+
+    private double pendingDragonHealthBonus = 0; // 드래곤 체력 증가량을 저장하는 필드
 
     private static final String[] POTION_EFFECTS = {
             "absorption", "bad_omen", "blindness", "conduit_power", "darkness",
@@ -43,6 +51,27 @@ public class EventListener {
             "weaving", "wind_charged", "wither"
     };
 
+    private static final EntityType[] SPAWNABLE_MOBS = {
+            EntityType.ALLAY, EntityType.ARMADILLO, EntityType.AXOLOTL, EntityType.BAT, EntityType.BEE,
+            EntityType.BLAZE, EntityType.BOGGED, EntityType.BREEZE, EntityType.CAMEL, EntityType.CAT,
+            EntityType.CAVE_SPIDER, EntityType.CHICKEN, EntityType.COD, EntityType.COW, EntityType.CREEPER,
+            EntityType.DOLPHIN, EntityType.DONKEY, EntityType.DROWNED, EntityType.ELDER_GUARDIAN,
+            EntityType.ENDERMAN, EntityType.ENDERMITE, EntityType.EVOKER, EntityType.FOX, EntityType.FROG,
+            EntityType.GHAST, EntityType.GLOW_SQUID, EntityType.GOAT, EntityType.GUARDIAN, EntityType.HOGLIN,
+            EntityType.HORSE, EntityType.HUSK, EntityType.LLAMA, EntityType.MAGMA_CUBE, EntityType.MOOSHROOM,
+            EntityType.MULE, EntityType.OCELOT, EntityType.PANDA, EntityType.PARROT, EntityType.PHANTOM,
+            EntityType.PIG, EntityType.PIGLIN, EntityType.PIGLIN_BRUTE, EntityType.PILLAGER,
+            EntityType.POLAR_BEAR, EntityType.PUFFERFISH, EntityType.RABBIT, EntityType.RAVAGER,
+            EntityType.SALMON, EntityType.SHEEP, EntityType.SHULKER, EntityType.SILVERFISH, EntityType.SKELETON,
+            EntityType.SKELETON_HORSE, EntityType.SLIME, EntityType.SNIFFER, EntityType.SPIDER, EntityType.SQUID,
+            EntityType.STRAY, EntityType.STRIDER, EntityType.TADPOLE, EntityType.TRADER_LLAMA,
+            EntityType.TROPICAL_FISH, EntityType.TURTLE, EntityType.VEX, EntityType.VILLAGER,
+            EntityType.VINDICATOR, EntityType.WANDERING_TRADER, EntityType.WARDEN, EntityType.WITCH,
+            EntityType.WITHER_SKELETON, EntityType.WOLF, EntityType.ZOGLIN, EntityType.ZOMBIE,
+            EntityType.ZOMBIE_HORSE, EntityType.ZOMBIE_VILLAGER, EntityType.ZOMBIFIED_PIGLIN
+            // 엔더 드래곤(ENDER_DRAGON)은 제외
+    };
+
     private static final String[] BOB_EFFECTS = {
             "speed", "strength", "regeneration", "instant_health",
             "fire_resistance", "water_breathing", "resistance"
@@ -51,6 +80,7 @@ public class EventListener {
     public EventListener(Plugin plugin) {
         this.plugin = plugin;
         registerEvents();
+        Bukkit.getPluginManager().registerEvents(this, plugin); // 드래곤 소환 감지를 위한 플러그인
     }
 
     private void registerEvents() {
@@ -61,7 +91,15 @@ public class EventListener {
         eventRegistry.put("hotbar_change", this::hotbarChange);
         eventRegistry.put("player_random_effect_give", this::playerRandomEffectGive);
         eventRegistry.put("spawn_tnt", this::spawnTnt);
-        eventRegistry.put("yeet", this::yeet); // "yeet" 이벤트도 spawn_tnt와 동일하게 처리
+        eventRegistry.put("yeet", this::yeet);
+        eventRegistry.put("freeze_player", this::freezePlayer);
+        eventRegistry.put("firework", this::firework);
+        eventRegistry.put("tamed_wolf", this::tamedWolf);
+        eventRegistry.put("set_spawn", this::setSpawn);
+        eventRegistry.put("block_remove", this::blockRemove);
+        eventRegistry.put("poop", this::poop);
+        eventRegistry.put("spawn_random_mob", this::spawnRandomMob);
+        eventRegistry.put("burn_player", this::burnPlayer);
 
         eventRegistry.put("dragon_get_hp", this::dragonGetHp);
         eventRegistry.put("spawn_bob", this::spawnBob);
@@ -78,7 +116,7 @@ public class EventListener {
         event.execute(target, allPlayers);
     }
 
-    // ===== 실제 이벤트 구현부 =====
+    // 실제 이벤트 구현부
 
     private void itemRemove(Player target, List<Player> allPlayers) {
         if (target == null || !target.isOnline())
@@ -101,7 +139,7 @@ public class EventListener {
         ItemStack removed = contents[slot];
         inv.setItem(slot, null);
 
-        target.sendMessage(ChatColor.RED + "아이템 [" + removed.getType() + "] 이(가) 뒤주에 갇혔습니다.");
+        target.sendMessage(ChatColor.RED + "니 템 [" + removed.getType() + "] 쩔더라 ㅋㅋ");
     }
 
     private void tickSpeedChange(Player target, List<Player> allPlayers) {
@@ -120,7 +158,7 @@ public class EventListener {
         for (World world : Bukkit.getWorlds()) {
             world.setGameRule(GameRule.RANDOM_TICK_SPEED, newTickSpeed);
         }
-        Bukkit.broadcastMessage(ChatColor.GREEN + "랜덤 틱 속도가 " + newTickSpeed + "로 변경되었습니다.");
+        Bukkit.broadcastMessage(ChatColor.GREEN + "틱 속도가 " + newTickSpeed + "로 변경되었습니다.");
 
         tickSpeedRevertTask = new BukkitRunnable() {
             @Override
@@ -132,7 +170,7 @@ public class EventListener {
                 tickSpeedRevertTask = null;
             }
         };
-        tickSpeedRevertTask.runTaskLater(plugin, 20 * 30); // 20틱(1초) × 30초 = 30초 뒤 실행
+        tickSpeedRevertTask.runTaskLater(plugin, 20 * 30); // 20틱(1초) x 30초 = 30초 뒤 실행
     }
 
     private void playerHpChange(Player target, List<Player> allPlayers) {
@@ -208,7 +246,7 @@ public class EventListener {
             tnt.setFuseTicks(40); // 2초 후 폭발
             tnt.setYield(4.0f); // 폭발 범위
         });
-        target.sendMessage(ChatColor.RED + "주변에 TNT가 스폰되었습니다!");
+        target.sendMessage(ChatColor.RED + "주변에 TNT가 스폰되었습니다.");
     }
 
     private void yeet(Player target, List<Player> allPlayers) {
@@ -216,11 +254,13 @@ public class EventListener {
             return;
 
         target.setVelocity(new Vector(0, 100, 0)); // 위로 100블럭 발사
-        target.sendRichMessage("<rainbow>위로 발사!!");
+        target.sendRichMessage("<rainbow>슝 슝 슝~");
     }
 
     private void dragonGetHp(Player target, List<Player> allPlayers) {
-        // 엔더 월드에 있는 드래곤에게 영구적으로 체력 100을 추가
+        // 엔더 월드에 있는 드래곤에게 영구적으로 체력 100을 추가.
+        // 드래곤이 아직 소환되지 않았거나(처치되어 사라진 상태 포함) 없으면,
+        // 증가분을 적립해뒀다가 소환 시(onDragonSpawn) 한꺼번에 적용한다.
 
         World endWorld = Bukkit.getWorld("world_the_end");
         if (endWorld == null) {
@@ -228,10 +268,48 @@ public class EventListener {
             return;
         }
 
-        endWorld.getEnderDragonBattle().getEnderDragon().setHealth(
-                Math.min(endWorld.getEnderDragonBattle().getEnderDragon().getMaxHealth() + 100,
-                        endWorld.getEnderDragonBattle().getEnderDragon().getMaxHealth()));
-        target.sendMessage(ChatColor.GREEN + "드래곤의 체력이 증가했습니다!");
+        EnderDragon dragon = endWorld.getEnderDragonBattle() != null
+                ? endWorld.getEnderDragonBattle().getEnderDragon()
+                : null;
+
+        if (dragon == null) {
+            pendingDragonHealthBonus += 100;
+            if (target != null && target.isOnline()) {
+                target.sendMessage(ChatColor.GRAY + "엔더 드래곤이 아직 소환되지 않아, 다음 소환 시 체력이 "
+                        + (int) pendingDragonHealthBonus + " 증가합니다.");
+            }
+            return;
+        }
+
+        applyDragonHealthBonus(dragon, 100);
+
+        if (target != null && target.isOnline()) {
+            target.sendMessage(ChatColor.GREEN + "드래곤의 체력이 영구적으로 증가했습니다!");
+        }
+    }
+
+    // 엔더 드래곤이 (재)소환될 때 호출됨 - 크리스탈을 통한 재소환도 CreatureSpawnEvent로 감지됨
+    @EventHandler
+    public void onDragonSpawn(CreatureSpawnEvent event) {
+        if (pendingDragonHealthBonus <= 0)
+            return;
+
+        if (!(event.getEntity() instanceof EnderDragon dragon))
+            return;
+
+        double bonus = pendingDragonHealthBonus;
+        pendingDragonHealthBonus = 0; // 먼저 초기화해서 중복 적용 방지
+
+        applyDragonHealthBonus(dragon, bonus);
+
+        Bukkit.broadcastMessage(ChatColor.GREEN + "엔더 드래곤의 체력이 영구적으로 " + (int) bonus + " 증가했습니다!");
+    }
+
+    // 최대 체력과 현재 체력을 함께 올려서 "영구적으로" 체력이 증가하도록 처리
+    private void applyDragonHealthBonus(EnderDragon dragon, double amount) {
+        double newMax = dragon.getMaxHealth() + amount;
+        dragon.setMaxHealth(newMax);
+        dragon.setHealth(newMax);
     }
 
     private void spawnBob(Player target, List<Player> allPlayers) {
@@ -247,7 +325,7 @@ public class EventListener {
         equipBobArmor(bob);
         giveBobEffects(bob);
 
-        Bukkit.broadcastMessage(ChatColor.DARK_RED + "★ Bob이 소환되었습니다! 조심하세요! ★");
+        Bukkit.broadcastMessage(ChatColor.DARK_RED + "짱짱 쎈 Bob이 소환되었습니다!");
     }
 
     private void equipBobArmor(Zombie bob) {
@@ -296,4 +374,101 @@ public class EventListener {
             bob.addPotionEffect(new PotionEffect(type, durationTicks, amplifier, false, false));
         }
     }
+
+    private void freezePlayer(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20 * 10, 255)); // 10초 동안 이동 불가
+        target.sendMessage(ChatColor.AQUA + "동상에 걸렸습니다!");
+    }
+
+    private void firework(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        target.getWorld().spawn(target.getLocation(), org.bukkit.entity.Firework.class, firework -> {
+            org.bukkit.inventory.meta.FireworkMeta meta = firework.getFireworkMeta();
+            meta.addEffect(org.bukkit.FireworkEffect.builder()
+                    .withColor(org.bukkit.Color.RED)
+                    .withFade(org.bukkit.Color.YELLOW)
+                    .with(org.bukkit.FireworkEffect.Type.BALL)
+                    .build());
+            meta.setPower(2);
+            firework.setFireworkMeta(meta);
+        });
+
+        target.sendMessage(ChatColor.LIGHT_PURPLE + "펑 (폭죽 터지는 소리)");
+    }
+
+    private void tamedWolf(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        org.bukkit.entity.Wolf wolf = target.getWorld().spawn(target.getLocation(), org.bukkit.entity.Wolf.class);
+        wolf.setOwner(target);
+        wolf.setTamed(true);
+        wolf.setCustomName(ChatColor.GRAY + target.getName() + "'의 늑대");
+        wolf.setCustomNameVisible(true);
+
+        target.sendMessage(ChatColor.GREEN + "너 내 주인이 되어라");
+    }
+
+    private void setSpawn(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        target.setBedSpawnLocation(target.getLocation(), true);
+        target.sendMessage(ChatColor.YELLOW + "스폰 지점이 현재 위치로 설정되었습니다!");
+    }
+
+    private void blockRemove(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        org.bukkit.block.Block block1 = target.getLocation().getBlock();
+        org.bukkit.block.Block block2 = block1.getRelative(org.bukkit.block.BlockFace.DOWN);
+
+        block1.setType(Material.AIR);
+        block2.setType(Material.AIR);
+
+        target.sendMessage(ChatColor.RED + "너무 무거워서 바닥이 무너졌습니다!");
+    }
+
+    private void poop(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        ItemStack poopItem = new ItemStack(Material.BROWN_DYE, 64);
+        ItemMeta meta = poopItem.getItemMeta();
+
+        if (meta != null) {
+            meta.setDisplayName("똥"); // 색을 넣으면 자동으로 이탤릭 해제됨
+            meta.setLore(List.of("냄새 조1낸 역겨움"));
+            poopItem.setItemMeta(meta);
+        }
+
+        target.getInventory().addItem(poopItem);
+
+        target.sendMessage(ChatColor.DARK_RED + "뿌직");
+    }
+
+    private void spawnRandomMob(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        EntityType randomMob = SPAWNABLE_MOBS[(int) (Math.random() * SPAWNABLE_MOBS.length)];
+        target.getWorld().spawnEntity(target.getLocation(), randomMob);
+
+        target.sendMessage(ChatColor.RED + "랜덤 소환된 몹 :" + randomMob.name());
+    }
+
+    private void burnPlayer(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        target.setFireTicks(20 * 5); // 5초 동안 불타게 함
+        target.sendMessage(ChatColor.RED + "젠장 에이스 이 공격은 대체 뭐냐!!");
+    }
+
 }

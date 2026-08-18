@@ -34,7 +34,9 @@ public class GameStart implements CommandExecutor, Listener {
 
     private static final String[] DEFAULT_EVENTS = { // 일반 이벤트 목록
             "item_remove", "tick_speed_change", "player_hp_change", "time_change", "hotbar_change",
-            "player_random_effect_give", "spawn_tnt", "yeet"
+            "player_random_effect_give", "spawn_tnt", "yeet", "spawn_random_mob", "freeze_player", "firework",
+            "tamed_wolf", "set_spawn", "block_remove",
+            "poop", "tained_wolf", "burn_player"
     };
 
     // private static final String[] DOUBLE_EVENTS = { // 더블 이벤트 목록
@@ -130,15 +132,21 @@ public class GameStart implements CommandExecutor, Listener {
 
                     // 온라인 플레이어 중 한 명을 룰렛으로 뽑아 타이틀/채팅으로 공지
                     startPlayerRoulette(() -> Bukkit.getScheduler().runTaskLater(plugin,
-                            () -> startEventRoulette(() -> {
-                                secondsLeft = EVENT_INTERVAL_SECONDS;
-                                eventBossBar.setTitle(formatTitle(secondsLeft));
-                                eventBossBar.setProgress(1.0);
-                                Bukkit.broadcastMessage("다음 이벤트까지 : " + secondsLeft + "초");
-                                if (gameActive && !paused) {
-                                    runTimer();
-                                }
-                            }),
+                            () -> {
+                                if (!gameActive)
+                                    return; // 대기 중 "종료" 명령이 들어온 경우 중단
+                                startEventRoulette(() -> {
+                                    if (!gameActive || eventBossBar == null)
+                                        return; // 진행 중 "종료" 명령이 들어온 경우 중단
+                                    secondsLeft = EVENT_INTERVAL_SECONDS;
+                                    eventBossBar.setTitle(formatTitle(secondsLeft));
+                                    eventBossBar.setProgress(1.0);
+                                    Bukkit.broadcastMessage("다음 이벤트까지 : " + secondsLeft + "초");
+                                    if (gameActive && !paused) {
+                                        runTimer();
+                                    }
+                                });
+                            },
                             ROULETTE_GAP_DELAY));
                     return;
                 }
@@ -171,6 +179,12 @@ public class GameStart implements CommandExecutor, Listener {
     }
 
     private void runPlayerSelectRouletteStep(List<Player> players, Player winner, int step, Runnable onComplete) {
+
+        if (!gameActive) { // 게임이 종료된 경우 룰렛 중단
+            playerRouletteRunning = false;
+            return;
+        }
+
         boolean isFinalStep = step >= ROULETTE_TOTAL_STEPS;
 
         // 마지막 스텝이 아니면 매번 무작위 플레이어를, 마지막이면 당첨자를 표시
@@ -244,6 +258,12 @@ public class GameStart implements CommandExecutor, Listener {
     }
 
     private void runEventRouletteStep(List<String> pool, String winner, int step, Runnable onComplete) {
+
+        if (!gameActive) { // 게임이 종료된 경우 룰렛 중단
+            eventRouletteRunning = false;
+            return;
+        }
+
         boolean isFinalStep = step >= ROULETTE_TOTAL_STEPS;
 
         String displayed = isFinalStep ? winner : pool.get((int) (Math.random() * pool.size()));
