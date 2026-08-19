@@ -40,6 +40,10 @@ public class EventListener implements Listener {
 
     private double pendingDragonHealthBonus = 0; // 드래곤 체력 증가량을 저장하는 필드
 
+    public java.util.Set<String> getEventKeys() { // 이벤트 키를 외부에서 조회할 수 있는 메서드
+        return java.util.Collections.unmodifiableSet(eventRegistry.keySet()); // 외부에서 수정할 수 없도록 unmodifiableSet으로 반환
+    }
+
     private static final String[] POTION_EFFECTS = {
             "absorption", "bad_omen", "blindness", "conduit_power", "darkness",
             "fire_resistance", "glowing", "haste", "health_boost", "hero_of_the_village",
