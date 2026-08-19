@@ -2,7 +2,7 @@ package org.rlaxogh76.randomEventsSurvival;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -160,7 +160,7 @@ public class EventListener implements Listener {
         int newTickSpeed = 20 + (int) (Math.random() * 9) * 20;
 
         for (World world : Bukkit.getWorlds()) {
-            world.setGameRule(GameRule.RANDOM_TICK_SPEED, newTickSpeed);
+            world.setGameRule(GameRules.RANDOM_TICK_SPEED, newTickSpeed);
         }
         Bukkit.broadcastMessage(ChatColor.GREEN + "틱 속도가 " + newTickSpeed + "로 변경되었습니다.");
 
@@ -168,7 +168,7 @@ public class EventListener implements Listener {
             @Override
             public void run() {
                 for (World world : Bukkit.getWorlds()) {
-                    world.setGameRule(GameRule.RANDOM_TICK_SPEED, defaultTickSpeed);
+                    world.setGameRule(GameRules.RANDOM_TICK_SPEED, defaultTickSpeed);
                 }
                 Bukkit.broadcastMessage(ChatColor.YELLOW + "랜덤 틱 속도가 원래 속도(" + defaultTickSpeed + ")로 되돌아왔습니다.");
                 tickSpeedRevertTask = null;
