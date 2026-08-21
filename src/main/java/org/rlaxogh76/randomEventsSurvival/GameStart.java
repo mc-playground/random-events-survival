@@ -25,7 +25,7 @@ import java.util.List;
 
 public class GameStart implements CommandExecutor, Listener {
 
-    private static final int EVENT_INTERVAL_SECONDS = 90; // 이벤트 주기(초) 기본 : 90초
+    private static final int EVENT_INTERVAL_SECONDS = 120; // 이벤트 주기(초) 기본 : 120초
 
     private static final int ROULETTE_TOTAL_STEPS = 20;
     private static final long ROULETTE_MIN_DELAY = 1L;
