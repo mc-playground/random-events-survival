@@ -56,5 +56,5 @@ processResources {
 
 tasks.jar {
     archiveFileName = 'random-events-survival.jar'
-    destinationDirectory = file('C:\\Users\\gktra\\Desktop\\test\\plugins')
+    destinationDirectory = file('C:\\minecraft\\data\\plugins')
 }
