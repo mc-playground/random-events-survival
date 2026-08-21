@@ -89,9 +89,9 @@ public class EventListener implements Listener {
 
     private void registerEvents() {
         eventRegistry.put("item_remove", this::itemRemove);
-        eventRegistry.put("tick_speed_change", this::tickSpeedChange);
+        // eventRegistry.put("tick_speed_change", this::tickSpeedChange);
         eventRegistry.put("player_hp_change", this::playerHpChange);
-        eventRegistry.put("time_change", this::timeChange);
+        // eventRegistry.put("time_change", this::timeChange);
         eventRegistry.put("hotbar_change", this::hotbarChange);
         eventRegistry.put("player_random_effect_give", this::playerRandomEffectGive);
         eventRegistry.put("spawn_tnt", this::spawnTnt);
@@ -104,6 +104,8 @@ public class EventListener implements Listener {
         eventRegistry.put("poop", this::poop);
         eventRegistry.put("spawn_random_mob", this::spawnRandomMob);
         eventRegistry.put("burn_player", this::burnPlayer);
+        eventRegistry.put("player_location_mix", this::playerLocationMix);
+        eventRegistry.put("hit_player_damage", this::hitPlayerDamage);
 
         eventRegistry.put("dragon_get_hp", this::dragonGetHp);
         eventRegistry.put("spawn_bob", this::spawnBob);
@@ -447,7 +449,7 @@ public class EventListener implements Listener {
         ItemMeta meta = poopItem.getItemMeta();
 
         if (meta != null) {
-            meta.setDisplayName("똥"); // 색을 넣으면 자동으로 이탤릭 해제됨
+            meta.setDisplayName("똥");
             meta.setLore(List.of("된장 냄새가 난다.. 아닌가?"));
             poopItem.setItemMeta(meta);
         }
@@ -473,6 +475,37 @@ public class EventListener implements Listener {
 
         target.setFireTicks(20 * 5); // 5초 동안 불타게 함
         target.sendMessage(ChatColor.RED + "젠장 에이스 이 공격은 대체 뭐냐!!");
+    }
+
+    private void playerLocationMix(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        List<Player> otherPlayers = new ArrayList<>(allPlayers);
+        otherPlayers.remove(target);
+
+        if (otherPlayers.isEmpty()) {
+            target.sendMessage(ChatColor.YELLOW + "다른 플레이어가 없어 위치를 섞을 수 없습니다.");
+            return;
+        }
+
+        Player randomPlayer = otherPlayers.get((int) (Math.random() * otherPlayers.size()));
+        org.bukkit.Location tempLocation = target.getLocation().clone();
+        target.teleport(randomPlayer.getLocation());
+        randomPlayer.teleport(tempLocation);
+
+        target.sendMessage(ChatColor.GREEN + randomPlayer.getName() + "님과 위치가 섞였습니다!");
+        randomPlayer.sendMessage(ChatColor.GREEN + target.getName() + "님과 위치가 섞였습니다!");
+    }
+
+    private void hitPlayerDamage(Player target, List<Player> allPlayers) {
+        if (target == null || !target.isOnline())
+            return;
+
+        double damage = 1 + Math.random() * 19; // 1 ~ 20 사이의 랜덤 데미지
+        target.damage(damage);
+
+        target.sendMessage(ChatColor.RED + "아야! " + String.format("%.2f", damage) + "의 피해를 입었습니다..");
     }
 
 }
